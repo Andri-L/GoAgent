@@ -1,0 +1,14 @@
+# Compiled binary
+goagent-linux
+goagent.exe
+
+# Models (too large for git)
+*.gguf
+
+# SSH keys (NEVER push these)
+*.key
+*.pem
+
+# OS files
+.DS_Store
+Thumbs.db
