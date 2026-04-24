@@ -43,7 +43,8 @@ func toolShell(command string) string {
 func toolHTTPGet(url string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	jinaURL := "https://r.jina.ai/" + url
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jinaURL, nil)
 	if err != nil {
 		return fmt.Sprintf("error creating request: %v", err)
 	}
@@ -128,14 +129,14 @@ func ToolDefinitions() []map[string]interface{} {
 			"type": "function",
 			"function": map[string]interface{}{
 				"name":        "http_get",
-				"description": "Fetch a URL via HTTP GET and return the response (15s timeout, 4KB cap)",
+				"description": "Use this tool to read the contents of a webpage. You must provide a complete, valid URL starting with http:// or https://. Use this when you need to gather facts from a specific website.",
 				"parameters": map[string]interface{}{
 					"type":     "object",
 					"required": []string{"url"},
 					"properties": map[string]interface{}{
 						"url": map[string]string{
 							"type":        "string",
-							"description": "The URL to fetch",
+							"description": "The complete URL to fetch (e.g. https://wikipedia.org)",
 						},
 					},
 				},
