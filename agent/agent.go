@@ -36,10 +36,11 @@ func New(cfg config.Config) *Agent {
 // --- OpenAI-compatible request/response types ---
 
 type chatMessage struct {
-	Role       string     `json:"role"`
-	Content    string     `json:"content,omitempty"`
-	ToolCalls  []toolCall `json:"tool_calls,omitempty"`
-	ToolCallID string     `json:"tool_call_id,omitempty"`
+	Role             string     `json:"role"`
+	Content          string     `json:"content,omitempty"`
+	ReasoningContent string     `json:"reasoning_content,omitempty"`
+	ToolCalls        []toolCall `json:"tool_calls,omitempty"`
+	ToolCallID       string     `json:"tool_call_id,omitempty"`
 }
 
 type toolCall struct {
@@ -107,6 +108,10 @@ func (a *Agent) Run(ctx context.Context, sessionID, question string) (string, er
 		if len(msg.ToolCalls) == 0 {
 			// Final answer — append assistant reply
 			messages = append(messages, msg)
+
+			if msg.ReasoningContent != "" {
+				fmt.Printf("\n[AI THINKING CHAIN]:\n%s\n\n", msg.ReasoningContent)
+			}
 
 			// --- 4. Lock: write updated messages back, unlock ---
 			if sessionID != "" {
