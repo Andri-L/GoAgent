@@ -7,7 +7,7 @@ LLAMA_BIN="/opt/llama.cpp/build/bin/llama-server"
 MODEL_PATH="/opt/llama.cpp/models/lfm2.5-1.2b-instruct-q4_K_M.gguf"
 
 HOST="127.0.0.1"
-PORT="8080"
+PORT="8082"
 CTX_SIZE="1024"
 BATCH_SIZE="32"
 THREADS="2"

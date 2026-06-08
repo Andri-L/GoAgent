@@ -76,7 +76,10 @@ Requires=llama-server.service
 Type=simple
 ExecStart=/opt/goagent/goagent-linux
 WorkingDirectory=/opt/goagent
-Environment=LLM_BASE_URL=http://127.0.0.1:8080/v1
+Environment=LLM_BASE_URL=http://127.0.0.1:8082/v1
+Environment=LISTEN_ADDR=:8080
+Environment=HF_TOKEN=${HF_TOKEN}
+Environment=VOICE_AGENT_TOKEN=${VOICE_AGENT_TOKEN}
 Restart=on-failure
 RestartSec=5
 
@@ -97,4 +100,4 @@ echo "  3. Start services:"
 echo "     systemctl start llama-server"
 echo "     systemctl start goagent"
 echo "  4. Test:"
-echo "     curl http://localhost:8081/health"
+echo "     curl http://localhost:8080/health"

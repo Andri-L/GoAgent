@@ -13,6 +13,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func main() {
@@ -30,6 +32,9 @@ func main() {
 
 	// Create agent
 	ag := agent.New(cfg)
+
+	// Create voice manager for WebSocket audio ingestion
+	voiceMgr := agent.NewVoiceManager(cfg, ag)
 
 	// If --test-prompt is set, run once and exit
 	if *testPrompt != "" {
@@ -101,6 +106,50 @@ func main() {
 		ag.ResetSession(req.SessionID)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"session reset"}`))
+	})
+
+	// --- WebSocket endpoint for ESP32 audio ---
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  4096,
+		WriteBufferSize: 4096,
+		CheckOrigin: func(r *http.Request) bool {
+			return true // ESP32 is not a browser
+		},
+	}
+
+	mux.HandleFunc("/audio", func(w http.ResponseWriter, r *http.Request) {
+		// Validate auth token before upgrading
+		auth := r.Header.Get("Authorization")
+		expected := "Bearer " + cfg.VoiceAgentToken
+		if cfg.VoiceAgentToken != "" && auth != expected {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		ws, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("[ws] Upgrade failed: %v", err)
+			return
+		}
+		defer ws.Close()
+
+		log.Printf("[ws] ESP32 connected from %s", r.RemoteAddr)
+
+		for {
+			mt, data, err := ws.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					log.Printf("[ws] Read error: %v", err)
+				}
+				break
+			}
+			if mt == websocket.BinaryMessage {
+				voiceMgr.ProcessBatch(data)
+			}
+			// Ignore text frames and other types
+		}
+
+		log.Printf("[ws] ESP32 disconnected from %s", r.RemoteAddr)
 	})
 
 	server := &http.Server{

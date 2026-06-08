@@ -8,33 +8,48 @@ import (
 
 // config holds all application settings
 type Config struct {
-	LLMBaseURL    string
-	ModelName     string
-	MaxTokens     int
-	Temperature   float64
-	MaxIterations int
-	SystemPrompt  string
-	ListenAddr    string
+	LLMBaseURL        string
+	ModelName         string
+	MaxTokens         int
+	Temperature       float64
+	MaxIterations     int
+	SystemPrompt      string
+	ListenAddr        string
+	HFToken           string
+	HFModelURL        string
+	VADThresholdDB    float64
+	VADSilenceBatches int
+	MaxVoiceAudioSec  int
+	VoiceAgentToken   string
+	VoiceSessionID    string
 }
 
 // Load reads configuration from environment variables, falling back to defaults.
 func Load() Config {
 	return Config{
-		LLMBaseURL:    getEnv("LLM_BASE_URL", "http://127.0.0.1:8080/v1"),
-		ModelName:     getEnv("MODEL_NAME", "lfm2.5-1.2b"),
-		MaxTokens:     getEnvInt("MAX_TOKENS", 256),
-		Temperature:   getEnvFloat("TEMPERATURE", 0.1),
-		MaxIterations: getEnvInt("MAX_ITERATIONS", 5),
-		SystemPrompt:  getEnv("SYSTEM_PROMPT", defaultSystemPrompt),
-		ListenAddr:    getEnv("LISTEN_ADDR", ":8081"),
+		LLMBaseURL:        getEnv("LLM_BASE_URL", "http://127.0.0.1:8082/v1"),
+		ModelName:         getEnv("MODEL_NAME", "lfm2.5-1.2b"),
+		MaxTokens:         getEnvInt("MAX_TOKENS", 256),
+		Temperature:       getEnvFloat("TEMPERATURE", 0.1),
+		MaxIterations:     getEnvInt("MAX_ITERATIONS", 5),
+		SystemPrompt:      getEnv("SYSTEM_PROMPT", defaultSystemPrompt),
+		ListenAddr:        getEnv("LISTEN_ADDR", ":8080"),
+		HFToken:           getEnv("HF_TOKEN", ""),
+		HFModelURL:        getEnv("HF_MODEL_URL", "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo"),
+		VADThresholdDB:    getEnvFloat("VAD_THRESHOLD_DB", -40.0),
+		VADSilenceBatches: getEnvInt("VAD_SILENCE_BATCHES", 20),
+		MaxVoiceAudioSec:  getEnvInt("MAX_VOICE_AUDIO_SEC", 30),
+		VoiceAgentToken:   getEnv("VOICE_AGENT_TOKEN", ""),
+		VoiceSessionID:    getEnv("VOICE_SESSION_ID", "voice"),
 	}
 }
 
 // String returns a human-readable representation of the config.
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"LLMBaseURL=%s ModelName=%s MaxTokens=%d Temperature=%.2f MaxIterations=%d ListenAddr=%s",
+		"LLMBaseURL=%s ModelName=%s MaxTokens=%d Temperature=%.2f MaxIterations=%d ListenAddr=%s VADThresholdDB=%.1f VADSilenceBatches=%d MaxVoiceAudioSec=%d VoiceSessionID=%s",
 		c.LLMBaseURL, c.ModelName, c.MaxTokens, c.Temperature, c.MaxIterations, c.ListenAddr,
+		c.VADThresholdDB, c.VADSilenceBatches, c.MaxVoiceAudioSec, c.VoiceSessionID,
 	)
 }
 

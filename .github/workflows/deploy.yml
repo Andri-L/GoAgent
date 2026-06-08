@@ -18,6 +18,7 @@ jobs:
 
       - name: Build for ARM64
         run: |
+          go mod tidy
           GOOS=linux GOARCH=arm64 go build -o goagent-linux .
         working-directory: .
 
