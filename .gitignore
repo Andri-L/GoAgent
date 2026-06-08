@@ -9,6 +9,11 @@ goagent.exe
 *.key
 *.pem
 
+# Environment variables (NEVER push these)
+.env
+.env.*
+!.env.example
+
 # OS files
 .DS_Store
 Thumbs.db
