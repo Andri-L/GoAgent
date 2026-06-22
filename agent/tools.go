@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -62,6 +64,9 @@ func toolHTTPGet(url string) string {
 
 // --- Tool: read_file ---
 func toolReadFile(path string) string {
+	if err := validateReadPath(path); err != nil {
+		return fmt.Sprintf("error: %v", err)
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Sprintf("error: %v", err)
@@ -72,6 +77,43 @@ func toolReadFile(path string) string {
 		return fmt.Sprintf("error reading: %v", err)
 	}
 	return string(data)
+}
+
+// validateReadPath blocks sensitive paths to prevent credential leakage.
+func validateReadPath(path string) error {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("invalid path")
+	}
+	lower := strings.ToLower(abs)
+
+	// Block .env files anywhere
+	if strings.Contains(filepath.Base(lower), ".env") {
+		return fmt.Errorf("access denied — .env files contain sensitive credentials")
+	}
+
+	// Block sensitive system directories
+	blockedPrefixes := []string{
+		"/opt/goagent/",
+		"/etc/",
+		"/root/",
+		"/proc/",
+		"/sys/",
+		"/var/run/secrets/",
+	}
+	for _, prefix := range blockedPrefixes {
+		if strings.HasPrefix(lower, prefix) {
+			return fmt.Errorf("access denied — cannot read from system directories")
+		}
+	}
+
+	// Block credential file extensions
+	ext := strings.ToLower(filepath.Ext(abs))
+	if ext == ".key" || ext == ".pem" || ext == ".crt" || ext == ".p12" {
+		return fmt.Errorf("access denied — credential files cannot be read")
+	}
+
+	return nil
 }
 
 // --- Dispatcher ---
