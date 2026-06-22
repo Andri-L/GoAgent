@@ -15,6 +15,7 @@ type Config struct {
 	MaxIterations     int
 	SystemPrompt      string
 	ListenAddr        string
+	LLMAPIKey         string
 	HFToken           string
 	HFModelURL        string
 	VADThresholdDB    float64
@@ -34,6 +35,7 @@ func Load() Config {
 		MaxIterations:     getEnvInt("MAX_ITERATIONS", 5),
 		SystemPrompt:      getEnv("SYSTEM_PROMPT", defaultSystemPrompt),
 		ListenAddr:        getEnv("LISTEN_ADDR", ":8080"),
+		LLMAPIKey:         getEnv("LLM_API_KEY", ""),
 		HFToken:           getEnv("HF_TOKEN", ""),
 		HFModelURL:        getEnv("HF_MODEL_URL", "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo"),
 		VADThresholdDB:    getEnvFloat("VAD_THRESHOLD_DB", -40.0),
@@ -46,9 +48,13 @@ func Load() Config {
 
 // String returns a human-readable representation of the config.
 func (c Config) String() string {
+	keyHint := ""
+	if c.LLMAPIKey != "" {
+		keyHint = " LLMAPIKey=***"
+	}
 	return fmt.Sprintf(
-		"LLMBaseURL=%s ModelName=%s MaxTokens=%d Temperature=%.2f MaxIterations=%d ListenAddr=%s VADThresholdDB=%.1f VADSilenceBatches=%d MaxVoiceAudioSec=%d VoiceSessionID=%s",
-		c.LLMBaseURL, c.ModelName, c.MaxTokens, c.Temperature, c.MaxIterations, c.ListenAddr,
+		"LLMBaseURL=%s ModelName=%s MaxTokens=%d Temperature=%.2f MaxIterations=%d ListenAddr=%s%s VADThresholdDB=%.1f VADSilenceBatches=%d MaxVoiceAudioSec=%d VoiceSessionID=%s",
+		c.LLMBaseURL, c.ModelName, c.MaxTokens, c.Temperature, c.MaxIterations, c.ListenAddr, keyHint,
 		c.VADThresholdDB, c.VADSilenceBatches, c.MaxVoiceAudioSec, c.VoiceSessionID,
 	)
 }

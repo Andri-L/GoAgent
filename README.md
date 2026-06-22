@@ -1,6 +1,6 @@
 # GoAgent
 
-Lightweight AI agent server written in Go. Connects to a local llama.cpp instance and exposes an HTTP API + WebSocket for voice-enabled chat with tool-calling capabilities (ReAct loop).
+Lightweight AI agent server written in Go. Connects to any OpenAI-compatible LLM API (local llama.cpp, Groq, OpenAI, etc.) and exposes an HTTP API + WebSocket for voice-enabled chat with tool-calling capabilities (ReAct loop).
 
 ## Features
 
@@ -47,21 +47,45 @@ ESP32 (INMP441 mic) ──ws binary──▶ GoAgent :8080 /audio
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `LLM_BASE_URL` | No | `http://127.0.0.1:8082/v1` | llama.cpp server |
+| `LLM_BASE_URL` | No | `http://127.0.0.1:8082/v1` | LLM server URL |
+| `MODEL_NAME` | No | `lfm2.5-1.2b` | Model name sent to the LLM |
+| `LLM_API_KEY` | No | — | API key for hosted providers (Groq, OpenAI, etc.). Leave empty for local llama.cpp. |
 | `LISTEN_ADDR` | No | `:8080` | HTTP + WebSocket port |
 | `HF_TOKEN` | **Yes** | — | Hugging Face API token |
 | `VOICE_AGENT_TOKEN` | **Yes** | — | Must match ESP32 auth token |
 | `VAD_THRESHOLD_DB` | No | `-40.0` | dBFS silence threshold |
 | `VAD_SILENCE_BATCHES` | No | `20` | Batches to confirm speech end |
 
+## Switching LLM Provider
+
+GoAgent uses a provider-agnostic OpenAI-compatible client. To switch backends, just change the URL, model, and API key:
+
+### Local llama.cpp (default)
+
+```bash
+LLM_BASE_URL=http://127.0.0.1:8082/v1
+MODEL_NAME=lfm2.5-1.2b
+LLM_API_KEY=          # leave empty
+```
+
+### Groq
+
+```bash
+LLM_BASE_URL=https://api.groq.com/openai/v1
+MODEL_NAME=llama-3.3-70b-versatile
+LLM_API_KEY=gsk_your_groq_key
+```
+
+Any other OpenAI-compatible API works the same way.
+
 ## Run
 
 ```bash
 # Copy .env.example to .env and fill in your tokens
 cp .env.example .env
-# Edit .env with your HF_TOKEN and VOICE_AGENT_TOKEN
+# Edit .env with your LLM provider, HF_TOKEN, and VOICE_AGENT_TOKEN
 
-# Start llama.cpp on port 8082
+# For local llama.cpp: start it on port 8082
 ./llama-server --port 8082 ...
 
 # Start GoAgent

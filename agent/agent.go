@@ -191,6 +191,9 @@ func (a *Agent) callLLM(ctx context.Context, messages []chatMessage, tools []map
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if a.cfg.LLMAPIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+a.cfg.LLMAPIKey)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("http call: %w", err)
