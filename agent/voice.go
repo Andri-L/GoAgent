@@ -7,6 +7,7 @@ import (
 	"goagent/config"
 	"log"
 	"math"
+	"strings"
 	"sync"
 	"time"
 )
@@ -169,6 +170,12 @@ func (vm *VoiceManager) worker() {
 		}
 		log.Printf("[voice] Transcription: %s", text)
 
+		// Filter noise hallucinations before sending to LLM
+		if vm.isNoise(text) {
+			log.Printf("[voice] Dropped noise segment: %q", text)
+			continue
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		answer, err := vm.agent.Run(ctx, vm.sessionID, text)
 		cancel()
@@ -180,6 +187,21 @@ func (vm *VoiceManager) worker() {
 
 		// Future: send answer to TTS module
 	}
+}
+
+// isNoise returns true for common ASR hallucinations on non-speech audio.
+func (vm *VoiceManager) isNoise(text string) bool {
+	t := strings.TrimSpace(strings.ToLower(text))
+	if len(t) < 2 {
+		return true
+	}
+	noiseWords := []string{"you", "uh", "um", "hmm", "mm", "mhm", "ah", "oh", "eh", "ha", "he", "hm"}
+	for _, w := range noiseWords {
+		if t == w {
+			return true
+		}
+	}
+	return false
 }
 
 // buildWav wraps raw PCM bytes in a standard RIFF/WAVE header.

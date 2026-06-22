@@ -41,7 +41,7 @@ func Load() Config {
 		HFModelURL:        getEnv("HF_MODEL_URL", "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo"),
 		VADThresholdDB:      getEnvFloat("VAD_THRESHOLD_DB", -40.0),
 		VADSilenceBatches:   getEnvInt("VAD_SILENCE_BATCHES", 20),
-		VADMinSpeechBatches: getEnvInt("VAD_MIN_SPEECH_BATCHES", 8),
+		VADMinSpeechBatches: getEnvInt("VAD_MIN_SPEECH_BATCHES", 16),
 		MaxVoiceAudioSec:    getEnvInt("MAX_VOICE_AUDIO_SEC", 30),
 		VoiceAgentToken:   getEnv("VOICE_AGENT_TOKEN", ""),
 		VoiceSessionID:    getEnv("VOICE_SESSION_ID", "voice"),
