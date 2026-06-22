@@ -27,6 +27,7 @@ type VoiceManager struct {
 	state          VADState
 	accumulator    []byte
 	silenceCounter int
+	speechBatches  int // consecutive batches above threshold while in Speech
 	asr            *ASRClient
 	agent          *Agent
 	sessionID      string
@@ -61,6 +62,7 @@ func (vm *VoiceManager) ProcessBatch(data []byte) {
 	case VADIdle:
 		if db > vm.cfg.VADThresholdDB {
 			vm.state = VADSpeech
+			vm.speechBatches = 1
 			vm.accumulator = append(vm.accumulator[:0], data...)
 			log.Printf("[voice] Speech started (%.1f dBFS)", db)
 		}
@@ -68,9 +70,14 @@ func (vm *VoiceManager) ProcessBatch(data []byte) {
 
 	case VADSpeech:
 		vm.accumulator = append(vm.accumulator, data...)
+		vm.speechBatches++
 		if db <= vm.cfg.VADThresholdDB {
-			vm.state = VADSilence
-			vm.silenceCounter = 0
+			// Only allow silence transition if enough speech has been captured
+			if vm.speechBatches >= vm.cfg.VADMinSpeechBatches {
+				vm.state = VADSilence
+				vm.silenceCounter = 0
+				log.Printf("[voice] Speech→Silence (%.1f dBFS, speechBatches=%d)", db, vm.speechBatches)
+			}
 		}
 		vm.checkMaxDuration()
 
@@ -79,12 +86,14 @@ func (vm *VoiceManager) ProcessBatch(data []byte) {
 		if db > vm.cfg.VADThresholdDB {
 			vm.state = VADSpeech
 			vm.silenceCounter = 0
+			log.Printf("[voice] Silence→Speech (%.1f dBFS)", db)
 		} else {
 			vm.silenceCounter++
 			if vm.silenceCounter >= vm.cfg.VADSilenceBatches {
 				vm.emitSegment()
 				vm.state = VADIdle
 				vm.silenceCounter = 0
+				vm.speechBatches = 0
 			}
 		}
 		vm.checkMaxDuration()

@@ -18,9 +18,10 @@ type Config struct {
 	LLMAPIKey         string
 	HFToken           string
 	HFModelURL        string
-	VADThresholdDB    float64
-	VADSilenceBatches int
-	MaxVoiceAudioSec  int
+	VADThresholdDB     float64
+	VADSilenceBatches  int
+	VADMinSpeechBatches int
+	MaxVoiceAudioSec   int
 	VoiceAgentToken   string
 	VoiceSessionID    string
 }
@@ -38,9 +39,10 @@ func Load() Config {
 		LLMAPIKey:         getEnv("LLM_API_KEY", ""),
 		HFToken:           getEnv("HF_TOKEN", ""),
 		HFModelURL:        getEnv("HF_MODEL_URL", "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo"),
-		VADThresholdDB:    getEnvFloat("VAD_THRESHOLD_DB", -40.0),
-		VADSilenceBatches: getEnvInt("VAD_SILENCE_BATCHES", 20),
-		MaxVoiceAudioSec:  getEnvInt("MAX_VOICE_AUDIO_SEC", 30),
+		VADThresholdDB:      getEnvFloat("VAD_THRESHOLD_DB", -40.0),
+		VADSilenceBatches:   getEnvInt("VAD_SILENCE_BATCHES", 20),
+		VADMinSpeechBatches: getEnvInt("VAD_MIN_SPEECH_BATCHES", 8),
+		MaxVoiceAudioSec:    getEnvInt("MAX_VOICE_AUDIO_SEC", 30),
 		VoiceAgentToken:   getEnv("VOICE_AGENT_TOKEN", ""),
 		VoiceSessionID:    getEnv("VOICE_SESSION_ID", "voice"),
 	}
@@ -53,9 +55,9 @@ func (c Config) String() string {
 		keyHint = " LLMAPIKey=***"
 	}
 	return fmt.Sprintf(
-		"LLMBaseURL=%s ModelName=%s MaxTokens=%d Temperature=%.2f MaxIterations=%d ListenAddr=%s%s VADThresholdDB=%.1f VADSilenceBatches=%d MaxVoiceAudioSec=%d VoiceSessionID=%s",
+		"LLMBaseURL=%s ModelName=%s MaxTokens=%d Temperature=%.2f MaxIterations=%d ListenAddr=%s%s VADThresholdDB=%.1f VADSilenceBatches=%d VADMinSpeechBatches=%d MaxVoiceAudioSec=%d VoiceSessionID=%s",
 		c.LLMBaseURL, c.ModelName, c.MaxTokens, c.Temperature, c.MaxIterations, c.ListenAddr, keyHint,
-		c.VADThresholdDB, c.VADSilenceBatches, c.MaxVoiceAudioSec, c.VoiceSessionID,
+		c.VADThresholdDB, c.VADSilenceBatches, c.VADMinSpeechBatches, c.MaxVoiceAudioSec, c.VoiceSessionID,
 	)
 }
 
