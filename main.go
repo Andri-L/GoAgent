@@ -152,6 +152,41 @@ func main() {
 		log.Printf("[ws] ESP32 disconnected from %s", r.RemoteAddr)
 	})
 
+	// --- WebSocket endpoint for TTS audio return ---
+	mux.HandleFunc("/response", func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		expected := "Bearer " + cfg.VoiceAgentToken
+		if cfg.VoiceAgentToken != "" && auth != expected {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		ws, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("[ws/response] Upgrade failed: %v", err)
+			return
+		}
+
+		sessionID := cfg.VoiceSessionID
+		voiceMgr.RegisterResponseConn(sessionID, ws)
+		log.Printf("[ws/response] ESP32 connected for session %s", sessionID)
+
+		// Keep connection alive by reading until disconnect
+		for {
+			_, _, err := ws.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					log.Printf("[ws/response] Read error: %v", err)
+				}
+				break
+			}
+		}
+
+		voiceMgr.UnregisterResponseConn(sessionID, ws)
+		ws.Close()
+		log.Printf("[ws/response] ESP32 disconnected from session %s", sessionID)
+	})
+
 	server := &http.Server{
 		Addr:    cfg.ListenAddr,
 		Handler: mux,

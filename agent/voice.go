@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // VADState represents the current state of the voice activity detector.
@@ -22,7 +24,7 @@ const (
 )
 
 // VoiceManager handles voice activity detection, speech accumulation,
-// and orchestration of ASR + LLM processing.
+// and orchestration of ASR + LLM + TTS processing.
 type VoiceManager struct {
 	cfg            config.Config
 	state          VADState
@@ -31,21 +33,32 @@ type VoiceManager struct {
 	speechBatches  int // consecutive batches above threshold while in Speech
 	asr            *ASRClient
 	agent          *Agent
+	tts            *TTSClient
 	sessionID      string
 	segmentCh      chan []byte
 	mu             sync.Mutex
+	// Response WebSocket connections (sessionID -> conn)
+	responseConns map[string]*websocket.Conn
+	responseMu    sync.Mutex
+	// Pending audio for sessions that connected after synthesis
+	pendingAudio map[string][]byte
 }
 
 // NewVoiceManager creates a voice pipeline for the given agent and config.
 // It spawns a background worker that processes speech segments sequentially.
 func NewVoiceManager(cfg config.Config, ag *Agent) *VoiceManager {
 	vm := &VoiceManager{
-		cfg:       cfg,
-		state:     VADIdle,
-		asr:       NewASRClient(cfg.HFModelURL, cfg.HFToken),
-		agent:     ag,
-		sessionID: cfg.VoiceSessionID,
-		segmentCh: make(chan []byte, 4),
+		cfg:           cfg,
+		state:         VADIdle,
+		asr:           NewASRClient(cfg.HFModelURL, cfg.HFToken),
+		agent:         ag,
+		sessionID:     cfg.VoiceSessionID,
+		segmentCh:     make(chan []byte, 4),
+		responseConns: make(map[string]*websocket.Conn),
+		pendingAudio:  make(map[string][]byte),
+	}
+	if cfg.TTSModelPath != "" && cfg.TTSPiperBin != "" {
+		vm.tts = NewTTSClient(cfg.TTSPiperBin, cfg.TTSModelPath, cfg.TTSSpeed)
 	}
 	go vm.worker()
 	return vm
@@ -185,8 +198,73 @@ func (vm *VoiceManager) worker() {
 		}
 		log.Printf("[voice] Agent response: %s", answer)
 
-		// Future: send answer to TTS module
+		// TTS: synthesize and broadcast audio to response connections
+		if vm.tts != nil {
+			pcmAudio, ttsErr := vm.tts.Synthesize(answer)
+			if ttsErr != nil {
+				log.Printf("[voice] TTS error: %v", ttsErr)
+				continue
+			}
+			log.Printf("[voice] TTS synthesized (%d bytes)", len(pcmAudio))
+			vm.broadcastAudio(vm.sessionID, pcmAudio)
+		}
 	}
+}
+
+// RegisterResponseConn registers a WebSocket connection for receiving TTS audio.
+func (vm *VoiceManager) RegisterResponseConn(sessionID string, conn *websocket.Conn) {
+	vm.responseMu.Lock()
+	defer vm.responseMu.Unlock()
+	vm.responseConns[sessionID] = conn
+	// If pending audio exists for this session, send it immediately
+	if data := vm.pendingAudio[sessionID]; len(data) > 0 {
+		go vm.sendAudioChunks(conn, data)
+		delete(vm.pendingAudio, sessionID)
+	}
+}
+
+// UnregisterResponseConn removes a WebSocket connection.
+func (vm *VoiceManager) UnregisterResponseConn(sessionID string, conn *websocket.Conn) {
+	vm.responseMu.Lock()
+	defer vm.responseMu.Unlock()
+	if vm.responseConns[sessionID] == conn {
+		delete(vm.responseConns, sessionID)
+	}
+}
+
+// broadcastAudio sends PCM audio to all registered response connections for a session.
+// If no connections are active, the audio is stored as pending.
+func (vm *VoiceManager) broadcastAudio(sessionID string, pcm []byte) {
+	vm.responseMu.Lock()
+	conn := vm.responseConns[sessionID]
+	vm.responseMu.Unlock()
+
+	if conn != nil {
+		vm.sendAudioChunks(conn, pcm)
+	} else {
+		vm.responseMu.Lock()
+		vm.pendingAudio[sessionID] = pcm
+		vm.responseMu.Unlock()
+		log.Printf("[voice] Audio stored as pending for session %s", sessionID)
+	}
+}
+
+// sendAudioChunks splits PCM into 2048-byte frames and sends via WebSocket.
+func (vm *VoiceManager) sendAudioChunks(conn *websocket.Conn, pcm []byte) {
+	const frameSize = 2048
+	sent := 0
+	for i := 0; i < len(pcm); i += frameSize {
+		end := i + frameSize
+		if end > len(pcm) {
+			end = len(pcm)
+		}
+		if err := conn.WriteMessage(websocket.BinaryMessage, pcm[i:end]); err != nil {
+			log.Printf("[voice] WS write error: %v", err)
+			return
+		}
+		sent += end - i
+	}
+	log.Printf("[voice] Audio sent (%d bytes in %d frames)", sent, (len(pcm)+frameSize-1)/frameSize)
 }
 
 // isNoise returns true for common ASR hallucinations on non-speech audio.

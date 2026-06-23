@@ -18,12 +18,15 @@ type Config struct {
 	LLMAPIKey         string
 	HFToken           string
 	HFModelURL        string
-	VADThresholdDB     float64
-	VADSilenceBatches  int
-	VADMinSpeechBatches int
-	MaxVoiceAudioSec   int
-	VoiceAgentToken   string
-	VoiceSessionID    string
+	VADThresholdDB       float64
+	VADSilenceBatches    int
+	VADMinSpeechBatches  int
+	MaxVoiceAudioSec     int
+	VoiceAgentToken      string
+	VoiceSessionID       string
+	TTSModelPath         string
+	TTSPiperBin          string
+	TTSSpeed             float64
 }
 
 // Load reads configuration from environment variables, falling back to defaults.
@@ -45,6 +48,9 @@ func Load() Config {
 		MaxVoiceAudioSec:    getEnvInt("MAX_VOICE_AUDIO_SEC", 30),
 		VoiceAgentToken:   getEnv("VOICE_AGENT_TOKEN", ""),
 		VoiceSessionID:    getEnv("VOICE_SESSION_ID", "voice"),
+		TTSModelPath:      getEnv("TTS_MODEL_PATH", "/opt/goagent/piper-models/es_ES-carlfm-high.onnx"),
+		TTSPiperBin:       getEnv("TTS_PIPER_BIN", "/opt/goagent/piper/piper"),
+		TTSSpeed:          getEnvFloat("TTS_SPEED", 1.0),
 	}
 }
 
@@ -54,10 +60,14 @@ func (c Config) String() string {
 	if c.LLMAPIKey != "" {
 		keyHint = " LLMAPIKey=***"
 	}
+	ttsHint := ""
+	if c.TTSModelPath != "" {
+		ttsHint = " TTS=enabled"
+	}
 	return fmt.Sprintf(
-		"LLMBaseURL=%s ModelName=%s MaxTokens=%d Temperature=%.2f MaxIterations=%d ListenAddr=%s%s VADThresholdDB=%.1f VADSilenceBatches=%d VADMinSpeechBatches=%d MaxVoiceAudioSec=%d VoiceSessionID=%s",
+		"LLMBaseURL=%s ModelName=%s MaxTokens=%d Temperature=%.2f MaxIterations=%d ListenAddr=%s%s VADThresholdDB=%.1f VADSilenceBatches=%d VADMinSpeechBatches=%d MaxVoiceAudioSec=%d VoiceSessionID=%s%s",
 		c.LLMBaseURL, c.ModelName, c.MaxTokens, c.Temperature, c.MaxIterations, c.ListenAddr, keyHint,
-		c.VADThresholdDB, c.VADSilenceBatches, c.VADMinSpeechBatches, c.MaxVoiceAudioSec, c.VoiceSessionID,
+		c.VADThresholdDB, c.VADSilenceBatches, c.VADMinSpeechBatches, c.MaxVoiceAudioSec, c.VoiceSessionID, ttsHint,
 	)
 }
 
